@@ -1,0 +1,9 @@
+#!/bin/sh
+# Local ruleset: no commits directly on main. Emergency bypass: git commit --no-verify
+branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+if [ "$branch" = "main" ]; then
+  echo "Blocked: you're on 'main'. Make a branch first:" >&2
+  echo "  git switch -c my-change" >&2
+  exit 1
+fi
+exit 0
