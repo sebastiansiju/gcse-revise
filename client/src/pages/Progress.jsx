@@ -12,7 +12,7 @@ export default function Progress() {
 
   // Last 14 days, filling gaps with zeros.
   const days = [...Array(14)].map((_, i) => {
-    const d = new Date(Date.now() - (13 - i) * 864e5).toISOString().slice(0, 10);
+    const d = new Date(Date.now() - (13 - i) * 864e5).toLocaleDateString('en-CA', { timeZone: 'Europe/London' });
     const row = data.daily.find((x) => x.d === d);
     return { d, questions: row?.questions ?? 0, minutes: row?.minutes ?? 0 };
   });

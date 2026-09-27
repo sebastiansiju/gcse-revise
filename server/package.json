@@ -4,11 +4,15 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/index.js --port=4000",
-    "start": "node src/index.js"
+    "dev": "node --env-file-if-exists=.env --watch src/index.js --port=4000",
+    "start": "node --env-file-if-exists=.env src/index.js"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "pg": "^8.23.0"
+  },
+  "engines": {
+    "node": ">=22.9"
   }
 }

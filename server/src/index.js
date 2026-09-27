@@ -3,13 +3,14 @@ import cookieParser from 'cookie-parser';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import './db.js';
+import { initDb } from './db.js';
 import { authRouter, requireAuth } from './auth.js';
 import { practiceRouter } from './routes/practice.js';
 import { studyRouter } from './routes/study.js';
 
 const app = express();
 app.disable('x-powered-by');
+app.set('trust proxy', 1); // behind Render's proxy: real client IPs for the login limiter
 app.use(express.json({ limit: '20kb' }));
 app.use(cookieParser());
 app.use((req, res, next) => {
@@ -37,4 +38,5 @@ app.use((err, req, res, next) => {
 
 const portArg = process.argv.find((a) => a.startsWith('--port='))?.slice(7);
 const port = Number(portArg || process.env.PORT) || 4000;
+await initDb();
 app.listen(port, () => console.log(`GCSE Revise API running on http://localhost:${port}`));
