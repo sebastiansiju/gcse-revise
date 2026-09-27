@@ -65,7 +65,7 @@ function shuffle(arr) {
 
 // Lenient comparison for typed answers: ignores spaces, £, units and trailing zeros; understands fractions.
 function normalise(s) {
-  return s.toLowerCase().replace(/[£$,°\s]/g, '').replace(/^[a-z]=/, '').replace(/(cm³|cm²|cm|mph|m\/s|kg|g\/cm³|j|v|degrees)$/g, '');
+  return s.toLowerCase().replace(/[£$,°\s]/g, '').replace(/^[a-z]=/, '').replace(/(cm³|cm²|cm|mph|m\/s|kg|g\/cm³|bq|hz|degrees|j|v|n|w|m|g|%)$/g, '');
 }
 function toNumber(s) {
   if (/^-?\d+\/\d+$/.test(s)) { const [a, b] = s.split('/').map(Number); return b ? a / b : null; }
