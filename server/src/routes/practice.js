@@ -1,35 +1,35 @@
 import { Router } from 'express';
-import { db } from '../db.js';
+import { many, one, run } from '../db.js';
 
 export const practiceRouter = Router();
 
 // Topics for a subject, with the user's accuracy on each.
-practiceRouter.get('/topics', (req, res) => {
-  const rows = db.prepare(`
+practiceRouter.get('/topics', async (req, res) => {
+  const topics = await many(`
     SELECT q.topic, COUNT(DISTINCT q.id) AS questions,
-      COUNT(a.id) AS attempts, COALESCE(SUM(a.correct), 0) AS correct
-    FROM questions q LEFT JOIN attempts a ON a.question_id = q.id AND a.user_id = ?
-    WHERE q.subject = ? GROUP BY q.topic ORDER BY q.topic`).all(req.user.id, String(req.query.subject || ''));
-  res.json({ topics: rows });
+      COUNT(a.id) AS attempts, COUNT(a.id) FILTER (WHERE a.correct) AS correct
+    FROM questions q LEFT JOIN attempts a ON a.question_id = q.id AND a.user_id = $1
+    WHERE q.subject = $2 GROUP BY q.topic ORDER BY q.topic`, [req.user.id, String(req.query.subject || '')]);
+  res.json({ topics });
 });
 
 // Smart selection: questions answered wrong last time come first, then unseen ones,
 // then ones answered correctly (least recently practised first). A little randomness keeps it fresh.
-practiceRouter.get('/questions', (req, res) => {
+practiceRouter.get('/questions', async (req, res) => {
   const subject = String(req.query.subject || '');
   const topic = req.query.topic ? String(req.query.topic) : null;
   const count = Math.min(Math.max(parseInt(req.query.count, 10) || 10, 1), 30);
 
-  const rows = db.prepare(`
+  const rows = await many(`
     SELECT q.id, q.subject, q.topic, q.grade, q.type, q.prompt, q.options,
-      (SELECT correct FROM attempts WHERE user_id = ? AND question_id = q.id ORDER BY id DESC LIMIT 1) AS last_correct,
-      (SELECT COUNT(*) FROM attempts WHERE user_id = ? AND question_id = q.id AND correct = 1) AS times_correct
-    FROM questions q WHERE q.subject = ? AND (? IS NULL OR q.topic = ?)`)
-    .all(req.user.id, req.user.id, subject, topic, topic);
+      (SELECT correct FROM attempts WHERE user_id = $1 AND question_id = q.id ORDER BY id DESC LIMIT 1) AS last_correct,
+      (SELECT COUNT(*) FROM attempts WHERE user_id = $1 AND question_id = q.id AND correct) AS times_correct
+    FROM questions q WHERE q.subject = $2 AND ($3::text IS NULL OR q.topic = $3)`,
+  [req.user.id, subject, topic]);
 
   const scored = rows.map((q) => {
     let priority;
-    if (q.last_correct === 0) priority = 3;
+    if (q.last_correct === false) priority = 3;
     else if (q.last_correct === null) priority = 2;
     else priority = 1 / (1 + q.times_correct);
     return { ...q, priority: priority + Math.random() };
@@ -38,20 +38,20 @@ practiceRouter.get('/questions', (req, res) => {
 
   const questions = scored.slice(0, count).map((q) => ({
     id: q.id, subject: q.subject, topic: q.topic, grade: q.grade, type: q.type, prompt: q.prompt,
-    options: q.options ? shuffle(JSON.parse(q.options)) : null,
-    status: q.last_correct === 0 ? 'retry' : q.last_correct === null ? 'new' : 'review',
+    options: q.options ? shuffle([...q.options]) : null,
+    status: q.last_correct === false ? 'retry' : q.last_correct === null ? 'new' : 'review',
   }));
   res.json({ questions });
 });
 
-practiceRouter.post('/answer', (req, res) => {
-  const q = db.prepare('SELECT * FROM questions WHERE id = ?').get(String(req.body?.questionId || ''));
+practiceRouter.post('/answer', async (req, res) => {
+  const q = await one('SELECT * FROM questions WHERE id = $1', [String(req.body?.questionId || '')]);
   if (!q) return res.status(404).json({ error: 'Question not found' });
   const given = String(req.body?.answer ?? '').slice(0, 200);
-  const expected = JSON.parse(q.answer);
+  const expected = q.answer;
   const correct = q.type === 'mcq' ? given === expected : expected.some((a) => answersMatch(given, a));
 
-  db.prepare('INSERT INTO attempts (user_id, question_id, correct) VALUES (?, ?, ?)').run(req.user.id, q.id, correct ? 1 : 0);
+  await run('INSERT INTO attempts (user_id, question_id, correct) VALUES ($1, $2, $3)', [req.user.id, q.id, correct]);
   res.json({ correct, correctAnswer: Array.isArray(expected) ? expected[0] : expected, explanation: q.explanation });
 });
 
