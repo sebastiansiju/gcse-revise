@@ -1,0 +1,18 @@
+#!/bin/sh
+# Local ruleset: main only changes through pull requests on GitHub.
+# Blocks pushing to main and deleting main. Emergency bypass: git push --no-verify
+protected="refs/heads/main"
+zero="0000000000000000000000000000000000000000"
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" = "$protected" ]; then
+    if [ "$local_sha" = "$zero" ]; then
+      echo "Blocked: deleting 'main' is not allowed." >&2
+    else
+      echo "Blocked: don't push straight to 'main'." >&2
+      echo "Push a branch instead and open a pull request:" >&2
+      echo "  git switch -c my-change && git push -u origin my-change && gh pr create" >&2
+    fi
+    exit 1
+  fi
+done
+exit 0
