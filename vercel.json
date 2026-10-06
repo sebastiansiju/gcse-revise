@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm install --prefix server --omit=dev && npm install --prefix client --include=dev",
+  "buildCommand": "npm run build --prefix client",
+  "outputDirectory": "client/dist",
+  "regions": ["lhr1"],
+  "functions": {
+    "api/index.js": { "includeFiles": "server/schema.sql" }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
+}
